@@ -1,4 +1,14 @@
 
+
+# Web Front-End and Proxy for Rpi WebRTC streamer using Firestore
+
+[Main Project](https://github.com/kclyu/rpi-webrtc-streamer-frontend)
+ 
+Modified from commit 3baea7e of main Project
+ 
+Also uses device Type and some minute changes check code for changes. Set Firestore and storage and other rules yourself.
+
+## Copy Readme
 # Web Front-End and Proxy for Rpi WebRTC streamer
 
 Notice:  This is a work in progress, 

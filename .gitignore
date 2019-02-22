@@ -12,3 +12,4 @@ firebase_config.json
 client_secret.json
 proxy_config.json
 *.log
+.DS_Store

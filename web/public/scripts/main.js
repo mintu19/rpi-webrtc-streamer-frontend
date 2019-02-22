@@ -22,7 +22,7 @@ function FirebaseBase() {
         // this.initFirebase();
         try {
             let app = firebase.app();
-            let features = ['auth', 'database', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
+            let features = ['auth', 'firestore', 'messaging', 'storage'].filter(feature => typeof app[feature] === 'function');
             trace('Firebase SDK loaded with ' + features.join(', '));
         } catch (e) {
             window.alert('Error loading the Firebase SDK, check the console.');
@@ -35,7 +35,7 @@ function FirebaseBase() {
 FirebaseBase.prototype.initFirebase = function() {
     // Shortcuts to Firebase SDK features.
     this.auth = firebase.auth();
-    this.database = firebase.database();
+    this.database = firebase.firestore();
     this.storage = firebase.storage();
     // Initiates Firebase auth and listen to auth state changes.
     this.auth.onAuthStateChanged(this.onAuthStateChanged.bind(this));
@@ -84,11 +84,12 @@ FirebaseBase.prototype.saveMessagingDeviceToken = function() {
         if (currentToken) {
             trace('Got FCM device token:', currentToken);
             // Saving the Device Token and Email to the database.
-            var tokenRef = 
-                firebase.database().ref( 'users/' + firebase.auth().currentUser.uid);
+            var tokenRef = firebase.firestore().collection('users').doc(firebase.auth().currentUser.uid)
+            // var tokenRef = firebase.database().ref( 'users/' + firebase.auth().currentUser.uid);
             tokenRef.set( { 
                 email: firebase.auth().currentUser.email, 
-                fcmToken: currentToken });
+                fcmToken: currentToken 
+            });
 
         } else {
             // Need to request permissions to show notifications.

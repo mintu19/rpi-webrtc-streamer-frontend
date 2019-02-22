@@ -75,15 +75,30 @@ if( config_.auth_type === "email-password" ) {
     let local_params = Object.assign(proxy_config, auth_params_, device_params_);
     logger.debug('Params: ' + JSON.stringify(local_params) );
     firebaseClient_ = new FirebaseClientEmail(local_params);
-}
-else if( config_.auth_type == 'google-auth' ) {
-    // TODD
+    var cleanup = require('./cleanup').Cleanup(exitHandler);
+    process.stdin.resume();
+} else if( config_.auth_type == 'google-auth' ) {
+    // TODO
     // logger.error('Using Google Auth OAuth2 of Firebase Auth');
     // let params_ = nconf.get('google-auth');
     logger.error('Not supported Google Auth OAuth2');
-}
-else {
+} else {
     logger.error('Not supported auth type in proxy_config.json :' + config_.auth_type);
 }
 
 
+function exitHandler(options, exitCode) {
+    
+    if (options.cleanup) console.log('clean');
+    if (exitCode || exitCode === 0) console.log(exitCode);
+    if (options.exit) {
+        let promise = firebaseClient_.closeDevice();
+        if (promise !== null) {
+            promise.then(result => {
+                if (options.exit) process.exit();
+            });
+        } else {
+            process.exit();
+        }
+    }
+}

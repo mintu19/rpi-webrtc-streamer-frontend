@@ -13,6 +13,7 @@ function FirebaseSignalingChannel(deviceId, remoteVideo ) {
 
     // If the server time diff value of the message is greater than 
     // the specified threshold, the message is ignored.
+    this.type_ = 'type-v1';
     this.signalingMessageTimeout_ = 10000;   // 10 seconds
 
     this.deviceId_ = deviceId;
@@ -20,7 +21,7 @@ function FirebaseSignalingChannel(deviceId, remoteVideo ) {
 
     // firebase signaling channel need two firebase module
     this.auth_ = firebase.auth();
-    this.database_ = firebase.database();
+    this.database_ = firebase.firestore();
     if( this.checkUserSignedIn() == false ) {
         return new Error('User need to sign in before using FirebaseSignalingChannel');
     };
@@ -39,29 +40,52 @@ FirebaseSignalingChannel.prototype.initSignaling_ = function () {
     if( this.checkUserSignedIn() == false ) return;
 
     // initialize the firebase server time offset
-    this.offsetRef_ = firebase.database().ref(".info/serverTimeOffset");
+    // this.offsetRef_ = firebase.database().ref(".info/serverTimeOffset");
     this.serverTimeOffset_ = 0; // initial offset value is zero
-    this.offsetRef_.on("value", function(snap) {
-        this.serverTimeOffset_ = snap.val();
-    }.bind(this));
+    // this.offsetRef_.on("value", function(snap) {
+    //     this.serverTimeOffset_ = snap.val();
+    // }.bind(this));
 
     trace("device Id : " + this.deviceId_ );
     trace("current userid : " + this.auth_.currentUser.uid );
 
     // Create a database ref of device presence information
-    this.devicePresenceRef_ = this.database_.ref('devices/' + 
-            this.auth_.currentUser.uid + '/' + this.deviceId_);
-    this.devicePresenceRef_.off();
-    this.devicePresenceRef_.on('value', this.onRecvDevicePresence_.bind(this));
+    this.devicePresenceRef_ = this.database_.collection('devices').doc(this.auth_.currentUser.uid)
+                    .collection(this.type_).doc(this.deviceId_);
+    // this.devicePresenceRef_ = this.database_.ref('devices/' + 
+    //         this.auth_.currentUser.uid + '/' + this.deviceId_);
+    // this.devicePresenceRef_.off();
+    if (this.p_unsub_ !== null && typeof(this.p_unsub_) == "function") {
+        this.p_unsub_();
+        this.p_unsub_ = null;
+    }
+    // this.devicePresenceRef_.on('value', this.onRecvDevicePresence_.bind(this));
+    this.p_unsub_ = this.devicePresenceRef_.onSnapshot(docSnap => {
+        this.onRecvDevicePresence_(docSnap);
+    });
     trace("device presence ref : " + this.devicePresenceRef_ );
 
     //  Create a database ref for exchanging device and signaling messages
-    this.messagesRef_ = this.database_.ref('messages/' + 
-            this.auth_.currentUser.uid + '/' + this.deviceId_);
+    // this.messagesRef_ = this.database_.ref('messages/' + 
+    //         this.auth_.currentUser.uid + '/' + this.deviceId_);
+    this.messagesRef_ = this.database_.collection('messages').doc(this.auth_.currentUser.uid).collection(this.deviceId_);
 
     // Make sure we remove all previous listeners.
-    this.messagesRef_.off();
-    this.messagesRef_.on('child_added', this.onRecvDatabaseMessage_.bind(this));
+    // this.messagesRef_.off();
+    if (this.m_unsub_ !== null && typeof(this.m_unsub_) == "function") {
+        this.m_unsub_();
+        this.m_unsub_ = null;
+    }
+    // this.messagesRef_.on('child_added', this.onRecvDatabaseMessage_.bind(this));
+    this.m_unsub_ = this.messagesRef_.onSnapshot(docSnap => {
+        docSnap.docChanges.forEach(change => {
+            if (change.type === 'added') {
+                trace('Child Added');
+                this.onRecvDatabaseMessage_(change.doc);
+              }
+        });
+    });
+
     trace("message ref : " + this.messagesRef_ );
 
     // enable periodic transmission of keepalive messages
@@ -71,13 +95,13 @@ FirebaseSignalingChannel.prototype.initSignaling_ = function () {
 
 FirebaseSignalingChannel.prototype.sendDatabaseMessage_ = function (message) {
     if (this.auth_.currentUser) {
-        this.messagesRef_.push({
+        this.messagesRef_.add({
             to: 'device',
             roomid: this.roomId_,
             clientid: this.clientId_,
             deviceid: this.deviceId_,
             message: message,
-            timestamp : firebase.database.ServerValue.TIMESTAMP
+            timestamp : firebase.firestore.FieldValue.serverTimestamp()
         });
     } else {
         trace('user does not signed in.');
@@ -98,23 +122,24 @@ FirebaseSignalingChannel.prototype.sendKeepAliveMessage = function () {
 };
 
 FirebaseSignalingChannel.prototype.isDatabaseConnected_ = function () {
-    var connectedRef = this.database_.ref(".info/connected");
-    connectedRef.on("value", function(snap) {
-        if (snap.val() === true) {
-            // database is connected
-            return true;
-        } else {
-            // database is disconnected
-            return false;
-        }
-    });
+    // var connectedRef = this.database_.ref(".info/connected");
+    // connectedRef.on("value", function(snap) {
+    //     if (snap.val() === true) {
+    //         // database is connected
+    //         return true;
+    //     } else {
+    //         // database is disconnected
+    //         return false;
+    //     }
+    // });
+    return true;
 };
 
 
 // If the device presence status changes to disconnected, 
 // stop all signaling and streaming services.
 FirebaseSignalingChannel.prototype.onRecvDevicePresence_ = function (snap) {
-    var val = snap.val();
+    var val = snap.data();
     trace('Snaphot Val : ' + JSON.stringify(val) );
     var updateTimeDiff = new Date().getTime() -  val.timestamp;
     trace('Message : DB Connection: ' + val.dbconn + ', deviceid: ' + val.deviceid + 
@@ -127,7 +152,7 @@ FirebaseSignalingChannel.prototype.onRecvDevicePresence_ = function (snap) {
 };
 
 FirebaseSignalingChannel.prototype.onRecvDatabaseMessage_ = function (snap) {
-    var val = snap.val();
+    var val = snap.data();
     var messageTimeDiff = new Date().getTime() + this.serverTimeOffset_  -  val.timestamp;
     trace('Message : To: ' + val.to + ', deviceid: ' + val.deviceid + 
             ', Timetamp: ' + val.timestamp + '(' + messageTimeDiff + ')' );
@@ -148,7 +173,7 @@ FirebaseSignalingChannel.prototype.onRecvDatabaseMessage_ = function (snap) {
             trace('Remove timeout message: ' + val.message );
         }
         // remove the current message
-        snap.ref.remove();
+        snap.ref.delete();
     };
 };
 
@@ -210,6 +235,15 @@ FirebaseSignalingChannel.prototype.doSignalingDisconnnect = function () {
     trace('Disconnecting device connection');
     this.doSignalingBye();
 
+    if(this.p_unsub_ !== null) {
+        this.p_unsub_();
+        this.p_unsub_ = null;
+    }
+    if(this.m_unsub_ !== null) {
+        this.m_unsub_();
+        this.m_unsub_ = null;
+    }
+
     this.peerConnectionClient_.close();
     this.deviceId_ = null;
     this.messagesRef_ = null;
@@ -236,5 +270,3 @@ FirebaseSignalingChannel.prototype.randomString_ = function (length) {
     }
     return result.join('');
 };
-
-

@@ -12,5 +12,6 @@
         "url": "ws://127.0.0.1:8889/rws/ws",
         "title": "Livinging Room",
         "description": ""
+        "deviceId": "1"
     }
 }

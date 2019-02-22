@@ -44,7 +44,7 @@ module.exports  = class AppClient {
             this.deviceId_ = this.getHardwareDeviceId_();
         } else {
             // using deviceId optional parameter
-            this.deviceId_ = this.deviceId;
+            this.deviceId_ = deviceId;
         }
         logger.info('Using Device ID: ' + this.deviceId_ );
         this.sendMessage_ = sendMessage;

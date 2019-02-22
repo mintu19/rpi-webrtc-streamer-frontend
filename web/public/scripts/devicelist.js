@@ -17,8 +17,9 @@ var kConstant_DeviceTableTemplate=
 
 function DeviceTable() {
     // firebase signaling channel need two firebase module
+    this.type_ = 'type-v1';
     this.auth_ = firebase.auth();
-    this.database_ = firebase.database();
+    this.database_ = firebase.firestore();
     this.deviceTableTBody = document.getElementById('device_list');
 };
 
@@ -35,19 +36,31 @@ DeviceTable.prototype.updateDeviceTable = function () {
     if( this.checkUserSignedIn() == false ) return;
     trace("current userid : " + this.auth_.currentUser.uid );
 
-    var query = this.database_.ref('devices/' + this.auth_.currentUser.uid)
-            .orderByKey();
+    // var query = this.database_.ref('devices/' + this.auth_.currentUser.uid).orderByKey();
+
+    var query = this.database_.collection('devices').doc(this.auth_.currentUser.uid)
+                    .collection(this.type_).orderBy('timestamp', 'desc').limit(1);
+
     trace('Device list ref : ' + query );
     trace('Start Query ---------------');
-    query.once("value")
-        .then( this.updateDeviceTableDom_.bind(this));
+    // query.once("value")
+    //     .then( this.updateDeviceTableDom_.bind(this));
+    var q_unsub = query.onSnapshot(snap => {
+        trace("Once: ")
+        snap.docs.forEach(doc => {
+            trace("Once: Device " + doc.data())
+            this.updateDeviceTableDom_(doc);
+        });
+        q_unsub();
+    });
     trace('End Query ---------------');
 };
 
 // update list of device list
 DeviceTable.prototype.updateDeviceTableDom_ = function(snapshot) {
-    var key = snapshot.key;
-    var val = snapshot.val();
+    // var key = snapshot.key;
+    var key = this.auth_.currentUser.uid;
+    var val = snapshot.data();
     trace('Key :  ' + key + ', Data : ' + JSON.stringify(val));
 
     trace('Device DOM Val :  ' + JSON.stringify(val));
