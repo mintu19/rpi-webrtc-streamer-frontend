@@ -11,7 +11,8 @@
     "local-device-config" : {
         "url": "ws://127.0.0.1:8889/rws/ws",
         "title": "Livinging Room",
-        "description": ""
-        "deviceId": "1"
+        "description": "",
+        "deviceId": "1",
+        "type": "type-v1"
     }
 }

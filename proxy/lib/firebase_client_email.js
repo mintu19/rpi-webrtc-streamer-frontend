@@ -18,12 +18,13 @@ const FieldValue = firebase.firestore.FieldValue
 module.exports  = class FirebaseClientEmail {
     constructor ( params ) {
 
-        this.type_ = 'type-v1';
-
         if( params == undefined ) {
             logger.error('No Configuration parameters to initialize Firebase Client');
         }
         this.params_ = params;
+
+        this.type_ = params.type || 'type-v1';
+
         logger.debug('Firebase Config file path: ' 
                 + params.firebase_client_config_file );
         let firebase_config = JSON.parse(require('fs')

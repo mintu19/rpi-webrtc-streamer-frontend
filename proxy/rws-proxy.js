@@ -58,8 +58,6 @@ nconf.file({
   logicalSeparator: '.'
 });
 
-
-
 let config_ = nconf.get('config');
 let firebaseClient_;
 
