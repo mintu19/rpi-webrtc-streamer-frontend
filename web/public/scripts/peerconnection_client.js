@@ -28,13 +28,31 @@ function PeerConnectionClient(remoteVideo, doSendPeerMessage) {
     this.remoteVideo_ = remoteVideo;
 
     //  PeerConnection
-    this.peerConnection_ = new RTCPeerConnection(this.pcConfig_, this.pcOptions_);
+    let peerConnection_ = new RTCPeerConnection(this.pcConfig_, this.pcOptions_);
+
+    navigator.mediaDevices
+        .getUserMedia({
+            audio: true,
+            video: false
+        })
+        .then(stream => {
+            stream.getTracks().forEach( (track) => {
+                peerConnection_.addTrack(track, stream)
+            })
+        })
+        .catch(e => {
+            window.alert('Error!!!');
+            trace(e)
+        });
+
+    this.peerConnection_ = peerConnection_;
+
     this.peerConnection_.onicecandidate = this.onIceCandidate_.bind(this);
     this.peerConnection_.ontrack = this.onRemoteStreamAdded_.bind(this);
     this.peerConnection_.onremovestream = trace.bind(null, 'Remote stream removed.');
     this.peerConnection_.onsignalingstatechange = this.onSignalingStateChanged_.bind(this);
-    this.peerConnection_.oniceconnectionstatechange =
-        this.onIceConnectionStateChanged_.bind(this);
+    this.peerConnection_.oniceconnectionstatechange = this.onIceConnectionStateChanged_.bind(this);
+    
     trace("Created RTCPeerConnnection with config: " + JSON.stringify(this.pcConfig_));
 };
 
